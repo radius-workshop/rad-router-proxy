@@ -34,7 +34,7 @@ All configuration is via environment variables (set in `.env` or your shell):
 |---|---|---|---|
 | `RADROUTER_PROXY_PRIVATE_KEY` | Yes* | — | Your Radius wallet private key (`0x` + 64 hex chars) |
 | `RADROUTER_PROXY_PRIVATE_KEY_FILE` | — | — | Path to a file containing your private key |
-| `RADROUTER_URL` | — | `https://rad-router.eriksreks.workers.dev` | RadRouter backend URL |
+| `RADROUTER_URL` | — | `https://rad-router.com` | RadRouter backend URL |
 | `RADROUTER_PROXY_PORT` | — | `4020` | Local proxy port |
 | `RADROUTER_X402_SCHEME` | — | `exact` | Payment scheme: `exact` or `upto` |
 | `RADROUTER_MODEL_MAP` | — | — | JSON object to override model name mappings |
