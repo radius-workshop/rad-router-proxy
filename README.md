@@ -1,6 +1,6 @@
 # RadRouter x402 Proxy
 
-A local proxy that sits between your AI-powered IDE (Claude Code, Zed, Cursor, etc.) and [RadRouter](https://rad-router.eriksreks.workers.dev). It automatically handles x402 payments on the Radius Network using your local private key — no API keys needed.
+A local proxy that sits between your AI-powered IDE (Claude Code, Zed, Cursor, etc.) and [RadRouter](https://rad-router.com). It automatically handles x402 payments on the Radius Network using your local private key — no API keys needed.
 
 ## Quick start
 
