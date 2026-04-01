@@ -296,7 +296,7 @@ const ERC20_NONCES_ABI = [
 ] as const;
 
 const radiusMainnet = defineChain({
-    id: 723,
+    id: 723487,
     name: "Radius Network",
     nativeCurrency: { decimals: 18, name: "RUSD", symbol: "RUSD" },
     rpcUrls: { default: { http: ["https://rpc.radiustech.xyz"] } },
@@ -888,7 +888,7 @@ async function signPermit(requirement: PaymentRequirement): Promise<string> {
     const domain = {
         name: "Stable Coin" as const,
         version: "1" as const,
-        chainId: 723,
+        chainId: 723487,
         verifyingContract: SBC_TOKEN as `0x${string}`,
     };
 
@@ -3202,7 +3202,7 @@ async function onServerListen() {
     console.log(`  Wallet:    ${account.address}`);
     console.log(`  Proxy:     http://localhost:${PORT}`);
     console.log(`  RadRouter: ${RADROUTER_URL}`);
-    console.log(`  Network:   Radius (Chain ID 723)`);
+    console.log(`  Network:   Radius (Chain ID 723487)`);
 
     try {
         const { rusd, sbc } = await fetchStartupBalances();
