@@ -861,6 +861,32 @@ async function fetchStartupBalances(): Promise<{
     return { rusd, sbc };
 }
 
+function validateCsrfProtection(
+    req: http.IncomingMessage,
+): { ok: true } | { ok: false; reason: string } {
+    const origin = req.headers["origin"];
+    const referer = req.headers["referer"];
+    const allowed = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`];
+
+    // Browsers always send Origin on cross-origin requests.
+    // CLI/IDE clients typically omit it, so absent Origin is allowed.
+    if (origin && !allowed.some((a) => origin === a)) {
+        return { ok: false, reason: "Forbidden cross-origin request" };
+    }
+    if (referer) {
+        try {
+            const refOrigin = new URL(referer).origin;
+            if (!allowed.some((a) => refOrigin === a)) {
+                return { ok: false, reason: "Forbidden cross-origin request" };
+            }
+        } catch {
+            return { ok: false, reason: "Invalid Referer header" };
+        }
+    }
+
+    return { ok: true };
+}
+
 function validateRequirement(requirement: PaymentRequirement): string | null {
     if (requirement.scheme !== EXPECTED_PAYMENT_SCHEME) {
         return `Unsupported scheme: ${requirement.scheme}. Expected ${EXPECTED_PAYMENT_SCHEME}`;
@@ -2670,6 +2696,15 @@ const server = http.createServer(async (req, res) => {
     logSection(`${method} ${path}`);
     if (upstreamPath !== path) {
         logStep("rewrite", `${path} -> ${upstreamPath}`);
+    }
+
+    const csrf = validateCsrfProtection(req);
+    if (!csrf.ok) {
+        logStep("csrf", csrf.reason);
+        res.writeHead(403);
+        res.end(JSON.stringify({ error: csrf.reason }));
+        req.resume();
+        return;
     }
 
     const chunks: Buffer[] = [];
