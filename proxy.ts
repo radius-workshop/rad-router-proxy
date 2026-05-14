@@ -105,6 +105,7 @@ const RADROUTER_URL =
 const PORT = parseInt(process.env.RADROUTER_PROXY_PORT || "4020", 10);
 const PRIVATE_KEY_REGEX = /^0x[a-fA-F0-9]{64}$/;
 const RADIUS_EXPLORER_URL = "https://network.radiustech.xyz";
+const FORBIDDEN_BROWSER_REQUEST_STATUS = 403;
 
 const DEFAULT_MODEL_MAP: Record<string, string> = {
     "claude-haiku-4-5-20251001": "anthropic/claude-haiku-4.5",
@@ -366,6 +367,74 @@ function toNumber(value: unknown): number {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+    const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (normalized === "localhost" || normalized === "::1") return true;
+
+    const ipv4Match = /^(\d{1,3})(?:\.(\d{1,3})){3}$/.exec(normalized);
+    if (!ipv4Match) return false;
+
+    const octets = normalized.split(".").map((part) => Number(part));
+    return (
+        octets.every((octet) => octet >= 0 && octet <= 255) &&
+        octets[0] === 127
+    );
+}
+
+function isLoopbackHttpUrl(value: string): boolean {
+    try {
+        const url = new URL(value);
+        return (
+            (url.protocol === "http:" || url.protocol === "https:") &&
+            isLoopbackHostname(url.hostname)
+        );
+    } catch {
+        return false;
+    }
+}
+
+function forbiddenBrowserRequestReason(
+    headers: http.IncomingHttpHeaders,
+): string | null {
+    const origin = headerFirst(headers, "origin");
+    if (origin !== undefined) {
+        if (origin === "null") {
+            return "browser origin is opaque";
+        }
+        if (!isLoopbackHttpUrl(origin)) {
+            return `browser origin is not loopback: ${origin}`;
+        }
+    }
+
+    const secFetchSite = headerFirst(headers, "sec-fetch-site")?.toLowerCase();
+    if (secFetchSite === "cross-site") {
+        return "browser fetch metadata marks the request as cross-site";
+    }
+
+    const referer = headerFirst(headers, "referer");
+    if (referer !== undefined && !isLoopbackHttpUrl(referer)) {
+        return `browser referer is not loopback: ${referer}`;
+    }
+
+    return null;
+}
+
+function rejectForbiddenBrowserRequest(
+    res: http.ServerResponse,
+    reason: string,
+) {
+    console.warn(`[proxy] Rejected browser-originated request: ${reason}`);
+    res.writeHead(FORBIDDEN_BROWSER_REQUEST_STATUS, {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+    });
+    res.end(
+        JSON.stringify({
+            error: "Forbidden browser-originated request",
+        }),
+    );
 }
 
 function redactSensitive(value: unknown): unknown {
@@ -2670,6 +2739,12 @@ const server = http.createServer(async (req, res) => {
     logSection(`${method} ${path}`);
     if (upstreamPath !== path) {
         logStep("rewrite", `${path} -> ${upstreamPath}`);
+    }
+
+    const browserRejectionReason = forbiddenBrowserRequestReason(req.headers);
+    if (browserRejectionReason) {
+        rejectForbiddenBrowserRequest(res, browserRejectionReason);
+        return;
     }
 
     const chunks: Buffer[] = [];
